@@ -1,0 +1,157 @@
+'use client'
+import { useState } from 'react'
+import { AppState, Task } from '@/lib/state'
+import Modal from './Modal'
+
+interface Props {
+  state: AppState
+  updateState: (u: Partial<AppState>) => void
+  showToast: (m: string) => void
+}
+
+const PRIORITY_COLORS: Record<string, string> = {
+  high: 'bg-[rgba(235,87,87,0.12)] text-[#eb8787] border-[rgba(235,87,87,0.2)]',
+  med:  'bg-[rgba(212,168,83,0.12)] text-gold border-[rgba(212,168,83,0.2)]',
+  low:  'bg-[rgba(111,207,151,0.1)] text-success border-[rgba(111,207,151,0.2)]',
+}
+
+const SCHEDULE_TIMES = ['9:00', '10:30', '12:00', '13:30', '15:00', '16:30']
+
+export default function PlannerModule({ state, updateState, showToast }: Props) {
+  const [newTask, setNewTask] = useState({ text: '', priority: 'med', duration: 30 })
+
+  const toggleTask = (id: number) => {
+    const tasks = state.tasks.map(t => t.id === id ? { ...t, done: !t.done } : t)
+    updateState({ tasks })
+    showToast(tasks.find(t=>t.id===id)?.done ? 'Task complete ✓' : 'Task reopened')
+  }
+
+  const addTask = () => {
+    if (!newTask.text.trim()) return
+    const tasks: Task[] = [
+      { id: Date.now(), text: newTask.text.trim(), priority: newTask.priority as Task['priority'], duration: Number(newTask.duration), done: false },
+      ...state.tasks,
+    ]
+    updateState({ tasks, plannerModalOpen: false })
+    setNewTask({ text: '', priority: 'med', duration: 30 })
+    showToast('Task added & schedule optimized ✦')
+  }
+
+  const pending = state.tasks.filter(t => !t.done)
+
+  return (
+    <>
+      <div className="module-card" id="planner">
+        <div className="module-header">
+          <div className="flex items-center gap-2.5">
+            <div className="module-icon-wrap">
+              <svg width="14" height="14" fill="none" viewBox="0 0 14 14" stroke="#d4a853" strokeWidth="1.5">
+                <rect x="1" y="1" width="12" height="12" rx="2"/>
+                <line x1="4" y1="7" x2="10" y2="7"/>
+                <line x1="4" y1="4.5" x2="7" y2="4.5"/>
+                <line x1="4" y1="9.5" x2="8" y2="9.5"/>
+              </svg>
+            </div>
+            <div>
+              <div className="font-display text-[15px]">Daily Planner</div>
+              <div className="text-[11px] text-text3">AI-optimized schedule</div>
+            </div>
+          </div>
+          <button className="btn-ghost text-xs" onClick={() => updateState({ plannerModalOpen: true })}>
+            + Add Task
+          </button>
+        </div>
+
+        <div className="p-5">
+          {/* Task list */}
+          <div className="flex flex-col gap-2 mb-4">
+            {state.tasks.map(t => (
+              <div
+                key={t.id}
+                className="flex items-start gap-2.5 px-3.5 py-2.5 bg-bg3 border border-white/[0.07] rounded-lg hover:border-white/[0.12] transition-colors"
+              >
+                <button
+                  onClick={() => toggleTask(t.id)}
+                  className={`w-4 h-4 rounded mt-0.5 flex-shrink-0 flex items-center justify-center transition-all border ${
+                    t.done ? 'bg-gold border-gold' : 'border-text3'
+                  }`}
+                >
+                  {t.done && <span className="text-bg text-[9px] font-bold">✓</span>}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <div className={`text-[13px] leading-snug ${t.done ? 'text-text3 line-through' : 'text-text1'}`}>
+                    {t.text}
+                  </div>
+                  <div className="flex gap-1.5 mt-1.5">
+                    <span className={`tag-base ${PRIORITY_COLORS[t.priority]}`}>{t.priority.toUpperCase()}</span>
+                    <span className="tag-base bg-bg4 text-text3 border-white/[0.07]">{t.duration} min</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* AI Schedule */}
+          <div className="bg-bg3 border rounded-lg p-3.5" style={{ borderColor: 'rgba(212,168,83,0.2)' }}>
+            <div className="ai-badge">
+              <div className="ai-dot" />
+              AI Schedule
+            </div>
+            {pending.length === 0 ? (
+              <p className="text-xs text-text3 italic">All tasks complete — great work today! ✦</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {pending.slice(0, 4).map((t, i) => (
+                  <div key={t.id} className="flex items-start gap-3">
+                    <span className="font-mono text-[10px] text-text3 min-w-[44px] pt-0.5">{SCHEDULE_TIMES[i]}</span>
+                    <div className="w-px self-stretch rounded" style={{ background: '#d4a853', minHeight: 20 }} />
+                    <span className="text-xs text-text2 leading-relaxed">{t.text}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Modal */}
+      <Modal
+        isOpen={state.plannerModalOpen}
+        onClose={() => updateState({ plannerModalOpen: false })}
+        title="Add Task"
+        subtitle="Describe your task and AI will fit it into your optimal schedule."
+        onConfirm={addTask}
+        confirmLabel="✦ Add & Optimize"
+      >
+        <div className="form-group mb-3">
+          <label className="font-mono text-[10px] text-text3 tracking-[1.5px] uppercase block mb-1.5">Task Description</label>
+          <input
+            className="input-base"
+            placeholder="e.g. Review quarterly report"
+            value={newTask.text}
+            onChange={e => setNewTask(n => ({ ...n, text: e.target.value }))}
+            onKeyDown={e => e.key === 'Enter' && addTask()}
+          />
+        </div>
+        <div className="form-group mb-3">
+          <label className="font-mono text-[10px] text-text3 tracking-[1.5px] uppercase block mb-1.5">Priority</label>
+          <select className="input-base" value={newTask.priority} onChange={e => setNewTask(n => ({ ...n, priority: e.target.value }))}>
+            <option value="high">High Priority</option>
+            <option value="med">Medium Priority</option>
+            <option value="low">Low Priority</option>
+          </select>
+        </div>
+        <div className="form-group">
+          <label className="font-mono text-[10px] text-text3 tracking-[1.5px] uppercase block mb-1.5">Estimated Duration</label>
+          <select className="input-base" value={newTask.duration} onChange={e => setNewTask(n => ({ ...n, duration: Number(e.target.value) }))}>
+            <option value={15}>15 min</option>
+            <option value={30}>30 min</option>
+            <option value={60}>1 hour</option>
+            <option value={90}>1.5 hours</option>
+            <option value={120}>2+ hours</option>
+          </select>
+        </div>
+      </Modal>
+    </>
+  )
+}

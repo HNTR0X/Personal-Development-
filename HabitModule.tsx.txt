@@ -1,0 +1,149 @@
+'use client'
+import { useState } from 'react'
+import { AppState, Habit } from '@/lib/state'
+import Modal from './Modal'
+
+interface Props {
+  state: AppState
+  updateState: (u: Partial<AppState>) => void
+  showToast: (m: string) => void
+}
+
+const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+
+export default function HabitModule({ state, updateState, showToast }: Props) {
+  const [newHabit, setNewHabit] = useState({ name: '', category: 'health' })
+
+  const toggleHabit = (habitId: number, dayIndex: number) => {
+    const habits = state.habits.map(h =>
+      h.id === habitId
+        ? { ...h, completions: h.completions.map((c, i) => i === dayIndex ? (c ? 0 : 1) : c) }
+        : h
+    )
+    updateState({ habits })
+  }
+
+  const addHabit = () => {
+    if (!newHabit.name.trim()) return
+    const habits: Habit[] = [...state.habits, {
+      id: Date.now(),
+      name: newHabit.name.trim(),
+      streak: 0,
+      completions: [0,0,0,0,0,0,0],
+    }]
+    updateState({ habits, habitModalOpen: false })
+    setNewHabit({ name: '', category: 'health' })
+    showToast('New habit added')
+  }
+
+  const totalDone = state.habits.reduce((a,h) => a + h.completions.filter(Boolean).length, 0)
+  const totalPossible = state.habits.length * 7
+  const pct = totalPossible ? Math.round((totalDone / totalPossible) * 100) : 0
+  const maxStreak = state.habits.length ? Math.max(...state.habits.map(h => h.streak)) : 0
+
+  return (
+    <>
+      <div className="module-card" id="habits">
+        <div className="module-header">
+          <div className="flex items-center gap-2.5">
+            <div className="module-icon-wrap">
+              <svg width="14" height="14" fill="none" viewBox="0 0 14 14" stroke="#d4a853" strokeWidth="1.5">
+                <circle cx="7" cy="7" r="5.5"/>
+                <path d="M7 4v3l2 2"/>
+              </svg>
+            </div>
+            <div>
+              <div className="font-display text-[15px]">Habit Tracker</div>
+              <div className="text-[11px] text-text3">7-day view · consistency insights</div>
+            </div>
+          </div>
+          <button className="btn-ghost text-xs" onClick={() => updateState({ habitModalOpen: true })}>
+            + Add Habit
+          </button>
+        </div>
+
+        <div className="p-5">
+          {/* Header row */}
+          <div className="grid gap-1 mb-2" style={{ gridTemplateColumns: '140px repeat(7, 1fr)' }}>
+            <div />
+            {DAYS.map(d => (
+              <div key={d} className="font-mono text-[9px] text-text3 text-center tracking-[1px] uppercase">{d}</div>
+            ))}
+          </div>
+
+          {/* Habits */}
+          <div className="flex flex-col gap-1.5 mb-4">
+            {state.habits.map(h => (
+              <div key={h.id} className="grid items-center gap-1" style={{ gridTemplateColumns: '140px repeat(7, 1fr)' }}>
+                <div className="text-xs text-text2 pr-2 truncate" title={h.name}>{h.name}</div>
+                {h.completions.map((done, di) => (
+                  <button
+                    key={di}
+                    onClick={() => toggleHabit(h.id, di)}
+                    className={`aspect-square w-full rounded transition-all border text-[9px] flex items-center justify-center ${
+                      done
+                        ? 'bg-gold border-gold text-bg font-bold'
+                        : 'bg-bg3 border-white/[0.07] hover:border-white/[0.12]'
+                    }`}
+                  >
+                    {done ? '✓' : ''}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {/* Insights */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="bg-bg3 border border-white/[0.07] rounded-lg p-3">
+              <div className="font-display text-[22px] font-bold text-text1">
+                {pct}<span className="font-sans text-xs text-text3">%</span>
+              </div>
+              <div className="text-[11px] text-text3">Weekly consistency</div>
+            </div>
+            <div className="bg-bg3 border border-white/[0.07] rounded-lg p-3">
+              <div className="font-display text-[22px] font-bold text-text1">
+                {maxStreak}<span className="font-sans text-xs text-text3"> days</span>
+              </div>
+              <div className="text-[11px] text-text3">Longest streak</div>
+            </div>
+            <div className="col-span-2 bg-bg3 border border-white/[0.07] rounded-lg p-3">
+              <p className="text-xs text-text2 leading-relaxed">
+                <strong className="text-gold">AI Insight:</strong> Your consistency drops on weekends — try anchoring Saturday habits to your morning coffee routine.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Modal
+        isOpen={state.habitModalOpen}
+        onClose={() => updateState({ habitModalOpen: false })}
+        title="Add New Habit"
+        subtitle="Track daily habits to build consistency and momentum."
+        onConfirm={addHabit}
+        confirmLabel="✦ Add Habit"
+      >
+        <div className="form-group mb-3">
+          <label className="font-mono text-[10px] text-text3 tracking-[1.5px] uppercase block mb-1.5">Habit Name</label>
+          <input
+            className="input-base"
+            placeholder="e.g. Morning meditation"
+            value={newHabit.name}
+            onChange={e => setNewHabit(n => ({ ...n, name: e.target.value }))}
+            onKeyDown={e => e.key === 'Enter' && addHabit()}
+          />
+        </div>
+        <div className="form-group">
+          <label className="font-mono text-[10px] text-text3 tracking-[1.5px] uppercase block mb-1.5">Category</label>
+          <select className="input-base" value={newHabit.category} onChange={e => setNewHabit(n => ({ ...n, category: e.target.value }))}>
+            <option value="health">Health & Fitness</option>
+            <option value="mind">Mind & Learning</option>
+            <option value="work">Work & Productivity</option>
+            <option value="social">Social & Relationships</option>
+          </select>
+        </div>
+      </Modal>
+    </>
+  )
+}

@@ -1,0 +1,40 @@
+'use client'
+import { AppState } from '@/lib/state'
+
+interface Props { state: AppState }
+
+export default function StatsRow({ state }: Props) {
+  const doneTasks = state.tasks.filter(t => t.done).length
+  const maxStreak = Math.max(...state.habits.map(h => h.streak))
+  const readResources = state.resources.filter(r => r.progress === 100).length
+
+  const stats = [
+    { label: 'Tasks Today',       value: doneTasks, suffix: `/ ${state.tasks.length}`, delta: '↑ 2 from yesterday', up: true },
+    { label: 'Habit Streak',      value: maxStreak, suffix: 'days',                    delta: '↑ Personal best',    up: true },
+    { label: 'Journal Entries',   value: state.journal.length, suffix: 'total',        delta: '3 this week',        up: true },
+    { label: 'Books / Resources', value: readResources, suffix: 'read',                delta: `${state.resources.filter(r=>r.progress<100).length} in queue`, up: false },
+  ]
+
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+      {stats.map((s, i) => (
+        <div
+          key={s.label}
+          className="bg-bg2 border border-white/[0.07] rounded-xl p-5 relative overflow-hidden hover:border-white/[0.12] transition-colors group"
+          style={{ animationDelay: `${i * 0.05 + 0.05}s` }}
+        >
+          {/* Gold top accent on hover */}
+          <div className="absolute top-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ background: 'linear-gradient(90deg, #d4a853, transparent)' }} />
+
+          <div className="font-mono text-[9px] text-text3 tracking-[2px] uppercase mb-2.5">{s.label}</div>
+          <div className="font-display text-[32px] font-bold text-text1 leading-none mb-1">
+            {s.value}{' '}
+            <span className="font-mono text-sm text-text3">{s.suffix}</span>
+          </div>
+          <div className={`text-[11px] ${s.up ? 'text-success' : 'text-text3'}`}>{s.delta}</div>
+        </div>
+      ))}
+    </div>
+  )
+}

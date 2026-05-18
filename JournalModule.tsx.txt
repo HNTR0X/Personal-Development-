@@ -1,0 +1,151 @@
+'use client'
+import { useState } from 'react'
+import { AppState, JournalEntry } from '@/lib/state'
+import Modal from './Modal'
+
+interface Props {
+  state: AppState
+  updateState: (u: Partial<AppState>) => void
+  showToast: (m: string) => void
+}
+
+const MOODS = ['😊','🔥','😐','😔','🤔','⚡']
+
+export default function JournalModule({ state, updateState, showToast }: Props) {
+  const [mood, setMood] = useState('😊')
+  const [text, setText] = useState('')
+  const [aiSummary, setAiSummary] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const save = async () => {
+    if (!text.trim()) return
+    setLoading(true)
+
+    let summary: string | null = null
+    try {
+      const res = await fetch('/api/journal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      const data = await res.json()
+      summary = data.summary
+      setAiSummary(summary)
+    } catch {
+      summary = null
+    }
+
+    const today = new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
+    const entry: JournalEntry = {
+      id: Date.now(),
+      date: today,
+      mood,
+      preview: text.trim(),
+      aiSummary: summary,
+    }
+    updateState({ journal: [entry, ...state.journal], journalModalOpen: false })
+    setText('')
+    setAiSummary(null)
+    setLoading(false)
+    showToast('Journal entry saved ✦')
+  }
+
+  return (
+    <>
+      <div className="module-card" id="journal">
+        <div className="module-header">
+          <div className="flex items-center gap-2.5">
+            <div className="module-icon-wrap">
+              <svg width="14" height="14" fill="none" viewBox="0 0 14 14" stroke="#d4a853" strokeWidth="1.5">
+                <path d="M2.5 1.5h7a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-7"/>
+                <path d="M2.5 1.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1"/>
+                <line x1="5" y1="5.5" x2="9" y2="5.5"/>
+                <line x1="5" y1="8" x2="9" y2="8"/>
+              </svg>
+            </div>
+            <div>
+              <div className="font-display text-[15px]">Reflective Journal</div>
+              <div className="text-[11px] text-text3">AI-powered reflection & summaries</div>
+            </div>
+          </div>
+          <button className="btn-ghost text-xs" onClick={() => updateState({ journalModalOpen: true })}>
+            + Write
+          </button>
+        </div>
+
+        <div className="p-5 flex flex-col gap-3">
+          {state.journal.length === 0 && (
+            <p className="text-sm text-text3 italic text-center py-6">No entries yet. Start reflecting.</p>
+          )}
+          {state.journal.map(e => (
+            <div
+              key={e.id}
+              className="bg-bg3 border border-white/[0.07] rounded-lg p-3.5 hover:border-white/[0.12] transition-colors cursor-pointer"
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-mono text-[10px] text-text3">{e.date}</span>
+                <span className="text-sm">{e.mood}</span>
+              </div>
+              <p className="text-xs text-text2 leading-relaxed line-clamp-2">{e.preview}</p>
+              {e.aiSummary && (
+                <div
+                  className="mt-2 px-3 py-2 text-[11px] text-text2 italic rounded-r"
+                  style={{ borderLeft: '2px solid #d4a853', background: 'rgba(212,168,83,0.07)' }}
+                >
+                  {e.aiSummary}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Modal
+        isOpen={state.journalModalOpen}
+        onClose={() => { updateState({ journalModalOpen: false }); setText(''); setAiSummary(null); }}
+        title="New Journal Entry"
+        subtitle="Reflect freely. AI will generate a summary and insight for you."
+        onConfirm={save}
+        confirmLabel={loading ? '...' : '✦ Save & Reflect'}
+        loading={loading}
+      >
+        <div className="form-group mb-3">
+          <label className="font-mono text-[10px] text-text3 tracking-[1.5px] uppercase block mb-2">How are you feeling?</label>
+          <div className="flex gap-2 flex-wrap">
+            {MOODS.map(m => (
+              <button
+                key={m}
+                onClick={() => setMood(m)}
+                className="text-lg p-2 rounded-lg border transition-all"
+                style={{
+                  background: mood === m ? 'rgba(212,168,83,0.15)' : 'var(--bg3, #1a1a1d)',
+                  borderColor: mood === m ? 'rgba(212,168,83,0.3)' : 'rgba(255,255,255,0.07)',
+                }}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="form-group mb-3">
+          <label className="font-mono text-[10px] text-text3 tracking-[1.5px] uppercase block mb-1.5">Your Thoughts</label>
+          <textarea
+            className="input-base"
+            style={{ minHeight: 120, resize: 'vertical' }}
+            placeholder="Write freely — what happened today, what you're grateful for..."
+            value={text}
+            onChange={e => setText(e.target.value)}
+          />
+        </div>
+        {aiSummary && (
+          <div>
+            <div className="ai-badge mb-2"><div className="ai-dot" /> AI Summary</div>
+            <div className="px-3 py-2 text-xs text-text2 italic rounded-r" style={{ borderLeft: '2px solid #d4a853', background: 'rgba(212,168,83,0.07)' }}>
+              {aiSummary}
+            </div>
+          </div>
+        )}
+      </Modal>
+    </>
+  )
+}

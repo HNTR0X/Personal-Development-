@@ -1,0 +1,17 @@
+'use client'
+
+interface Props { show: boolean; msg: string }
+
+export default function Toast({ show, msg }: Props) {
+  return (
+    <div
+      className={`fixed bottom-7 right-7 z-[1000] flex items-center gap-2 px-4 py-3 rounded-lg text-sm text-text1 pointer-events-none transition-all duration-300 ${
+        show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+      }`}
+      style={{ background: '#1a1a1d', border: '1px solid rgba(255,255,255,0.12)' }}
+    >
+      <div className="w-1.5 h-1.5 rounded-full bg-gold flex-shrink-0" />
+      {msg}
+    </div>
+  )
+}

@@ -1,0 +1,85 @@
+'use client'
+import { useState, useEffect } from 'react'
+import Sidebar from '@/components/Sidebar'
+import Topbar from '@/components/Topbar'
+import StatsRow from '@/components/StatsRow'
+import PlannerModule from '@/components/PlannerModule'
+import HabitModule from '@/components/HabitModule'
+import JournalModule from '@/components/JournalModule'
+import LearningModule from '@/components/LearningModule'
+import Toast from '@/components/Toast'
+import { AppState, defaultState } from '@/lib/state'
+
+export default function Dashboard() {
+  const [state, setState] = useState<AppState>(defaultState)
+  const [toast, setToast] = useState({ show: false, msg: '' })
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const showToast = (msg: string) => {
+    setToast({ show: true, msg })
+    setTimeout(() => setToast(t => ({ ...t, show: false })), 2800)
+  }
+
+  const updateState = (updates: Partial<AppState>) => {
+    setState(s => ({ ...s, ...updates }))
+  }
+
+  useEffect(() => {
+    // Persist to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('apex_state', JSON.stringify(state))
+    }
+  }, [state])
+
+  useEffect(() => {
+    // Restore from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('apex_state')
+      if (saved) {
+        try { setState(JSON.parse(saved)) } catch {}
+      }
+    }
+  }, [])
+
+  return (
+    <div className="flex min-h-screen">
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <main className="flex-1 ml-0 md:ml-[220px] p-5 md:p-9 min-h-screen">
+        <Topbar
+          state={state}
+          onMenuClick={() => setSidebarOpen(o => !o)}
+          onAddTask={() => updateState({ plannerModalOpen: true })}
+          onNewJournal={() => updateState({ journalModalOpen: true })}
+        />
+
+        <StatsRow state={state} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <PlannerModule
+            state={state}
+            updateState={updateState}
+            showToast={showToast}
+          />
+          <HabitModule
+            state={state}
+            updateState={updateState}
+            showToast={showToast}
+          />
+          <JournalModule
+            state={state}
+            updateState={updateState}
+            showToast={showToast}
+          />
+          <LearningModule
+            state={state}
+            updateState={updateState}
+            showToast={showToast}
+          />
+        </div>
+      </main>
+
+      <Toast show={toast.show} msg={toast.msg} />
+    </div>
+  )
+}
